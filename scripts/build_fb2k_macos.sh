@@ -21,6 +21,7 @@ COMPONENT_DIR="${FB2K_MAC_OUTPUT_DIR:-$BUILD_ROOT/foo_input_vgmstream.component}
 ZIP_PATH="${FB2K_MAC_ZIP_PATH:-$BUILD_ROOT/foo_input_vgmstream.component.zip}"
 LIBVGMSTREAM_PATH="${LIBVGMSTREAM_PATH:-$ROOT_DIR/src/libvgmstream.a}"
 VGMSTREAM_BUILD_DIR="${VGMSTREAM_BUILD_DIR:-}"
+FB2K_MAC_LINK_OPTIONAL_DEPS="${FB2K_MAC_LINK_OPTIONAL_DEPS:-0}"
 MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
 ARCH="${ARCH:-$(uname -m)}"
 SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
@@ -103,19 +104,30 @@ append_if_exists() {
     done
 }
 
-if [[ -n "$VGMSTREAM_BUILD_DIR" ]]; then
-    append_if_exists \
-        "$VGMSTREAM_BUILD_DIR/dependencies/libg719_decode/libg719_decode.a" \
-        "$VGMSTREAM_BUILD_DIR/dependencies/LibAtrac9/bin/libatrac9.a" \
-        "$VGMSTREAM_BUILD_DIR/dependencies/celt-0061/libcelt/.libs/libcelt.a" \
-        "$VGMSTREAM_BUILD_DIR/dependencies/celt-0110/libcelt/.libs/libcelt0.a" \
-        "$VGMSTREAM_BUILD_DIR/dependencies/speex/libspeex/.libs/libspeex.a"
-fi
+if [[ "$FB2K_MAC_LINK_OPTIONAL_DEPS" = "1" ]]; then
+    if [[ -n "$VGMSTREAM_BUILD_DIR" ]]; then
+        append_if_exists \
+            "$VGMSTREAM_BUILD_DIR/dependencies/mpg123/src/libmpg123/.libs/libmpg123.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/ogg/libogg.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/vorbis/lib/libvorbisfile.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/vorbis/lib/libvorbis.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/ffmpeg/bin/usr/local/lib/libavformat.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/ffmpeg/bin/usr/local/lib/libavcodec.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/ffmpeg/bin/usr/local/lib/libavutil.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/ffmpeg/bin/usr/local/lib/libswresample.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/libg719_decode/libg719_decode.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/LibAtrac9/bin/libatrac9.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/celt-0061/libcelt/.libs/libcelt.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/celt-0110/libcelt/.libs/libcelt0.a" \
+            "$VGMSTREAM_BUILD_DIR/dependencies/speex/libspeex/.libs/libspeex.a"
+    fi
 
-append_first_pkg_config libmpg123 mpg123
-append_pkg_config vorbisfile vorbis ogg
-append_pkg_config libavformat libavcodec libavutil libswresample
-append_first_pkg_config speex
+    append_first_pkg_config libmpg123 mpg123
+    append_pkg_config vorbisfile vorbis ogg
+    append_pkg_config libavformat libavcodec libavutil libswresample
+    append_first_pkg_config opus libopus
+    append_first_pkg_config speex
+fi
 
 VERSION="$(
     awk -F '"' '/#define VGMSTREAM_VERSION "/ { print $2; exit }' "$ROOT_DIR/version.h"

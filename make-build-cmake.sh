@@ -32,7 +32,8 @@ cmake --build "$BUILD_DIR"
 
 if [ "$(uname)" = "Darwin" ] && [ -n "${FB2K_SDK_PATH:-}" ]; then
   FB2K_MAC_BUILD_DIR="${FB2K_MAC_BUILD_DIR:-$BUILD_DIR/fb2k-macos}" \
-  LIBVGMSTREAM_PATH="${LIBVGMSTREAM_PATH:-$BUILD_DIR/src/libvgmstream.a}" \
-  VGMSTREAM_BUILD_DIR="$BUILD_DIR" \
+  LIBVGMSTREAM_PATH="${LIBVGMSTREAM_PATH:-$ROOT_DIR/src/libvgmstream.a}" \
+  FB2K_MAC_LINK_OPTIONAL_DEPS="${FB2K_MAC_LINK_OPTIONAL_DEPS:-0}" \
+  VGMSTREAM_BUILD_DIR="${VGMSTREAM_BUILD_DIR:-$BUILD_DIR}" \
   "$ROOT_DIR/scripts/build_fb2k_macos.sh"
 fi

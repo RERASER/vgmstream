@@ -33,7 +33,11 @@
             "https://github.com/vgmstream/vgmstream/\n" \
             "https://sourceforge.net/projects/vgmstream/ (original)"
 
+#ifdef _WIN32
 #define PLUGIN_FILENAME "foo_input_vgmstream.dll"
+#else
+#define PLUGIN_FILENAME "foo_input_vgmstream.component"
+#endif
 
 static const char* find_last_path_sep(const char* path) {
     const char* slash = strrchr(path, '/');

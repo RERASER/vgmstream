@@ -83,8 +83,6 @@ jobs:
         shell: bash
         env:
           FB2K_SDK_PATH: ${{ runner.temp }}/fb2k-sdk
-          LIBVGMSTREAM_PATH: ${{ github.workspace }}/build/src/libvgmstream.a
-          VGMSTREAM_BUILD_DIR: ${{ github.workspace }}/build
           FB2K_MAC_BUILD_DIR: ${{ github.workspace }}/build/fb2k-macos
         run: |
           chmod +x ./scripts/build_fb2k_macos.sh
