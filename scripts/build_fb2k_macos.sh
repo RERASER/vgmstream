@@ -35,7 +35,7 @@ if [[ -z "${FB2K_MAC_LINK_OPTIONAL_DEPS:-}" ]]; then
     fi
 fi
 MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
-ARCHS="${ARCHS:-arm64 x86_64}"
+ARCHS="${ARCHS:-$(uname -m)}"
 SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
 
 read -r -a ARCH_LIST <<< "$ARCHS"

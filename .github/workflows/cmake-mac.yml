@@ -31,8 +31,16 @@ env:
 
 jobs:
   build:
-    name: CMake, macOS
-    runs-on: macos-latest
+    name: CMake, macOS (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+          - arch: x86_64
+            runner: macos-13
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - uses: actions/checkout@v4
@@ -76,14 +84,16 @@ jobs:
       - name: Build
         run: |
           export LIBRARY_PATH=$(brew --prefix)/lib
-          cmake -S . -B build -DBUILD_AUDACIOUS:BOOL=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+          cmake -S . -B build -DBUILD_AUDACIOUS:BOOL=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}"
           cmake --build build
 
       - name: Build foobar2000 Mac component
         shell: bash
         env:
           FB2K_SDK_PATH: ${{ runner.temp }}/fb2k-sdk
-          FB2K_MAC_BUILD_DIR: ${{ github.workspace }}/build/fb2k-macos
+          FB2K_MAC_BUILD_DIR: ${{ github.workspace }}/build/fb2k-macos-${{ matrix.arch }}
+          FB2K_MAC_ZIP_PATH: ${{ github.workspace }}/build/fb2k-macos-${{ matrix.arch }}/foo_input_vgmstream-${{ matrix.arch }}.component.zip
+          ARCHS: ${{ matrix.arch }}
         run: |
           chmod +x ./scripts/build_fb2k_macos.sh
           ./scripts/build_fb2k_macos.sh
@@ -92,13 +102,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: ${{ github.workspace }}/build/cli/vgmstream-cli
-          name: vgmstream-mac
+          name: vgmstream-mac-${{ matrix.arch }}
 
       - name: Upload foobar2000 component artifact
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ github.workspace }}/build/fb2k-macos/foo_input_vgmstream.component.zip
-          name: foo_input_vgmstream-mac-component
+          path: ${{ github.workspace }}/build/fb2k-macos-${{ matrix.arch }}/foo_input_vgmstream-${{ matrix.arch }}.component.zip
+          name: foo_input_vgmstream-mac-component-${{ matrix.arch }}
 
       # uploads current assets to vgmstream-releases (token only works on merges)
       - name: Upload artifacts to vgmstream-releases
@@ -108,5 +118,5 @@ jobs:
         env:
           UPLOADER_GITHUB_TOKEN: ${{ secrets.UPLOADER_GITHUB_TOKEN }}
         run: |
-          tar cvfz vgmstream-mac-cli.tar.gz -C ./build/cli vgmstream-cli
-          python3 .github/uploader.py vgmstream-mac-cli.tar.gz ./build/fb2k-macos/foo_input_vgmstream.component.zip
+          tar cvfz vgmstream-mac-cli-${{ matrix.arch }}.tar.gz -C ./build/cli vgmstream-cli
+          python3 .github/uploader.py vgmstream-mac-cli-${{ matrix.arch }}.tar.gz ./build/fb2k-macos-${{ matrix.arch }}/foo_input_vgmstream-${{ matrix.arch }}.component.zip
