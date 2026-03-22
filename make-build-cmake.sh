@@ -1,18 +1,37 @@
 #!/bin/sh
+set -eu
 
-# example script that builds vgmstream with most libs enabled using CMake + make
+# example script that builds vgmstream with most libs enabled using CMake
+# Linux: installs dependencies with apt
+# macOS: installs dependencies with brew, and if FB2K_SDK_PATH is set also builds the foobar2000 component package
 
-sudo apt-get -y update
-# base deps
-sudo apt-get install gcc g++ make build-essential git cmake
-# optional: for extra formats (can be ommited to build with static libs)
-sudo apt-get install libmpg123-dev libvorbis-dev libspeex-dev
-sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libswresample-dev
-sudo apt-get install yasm libopus-dev
-# optional: for vgmstream 123 and audacious
-sudo apt-get install -y libao-dev audacious-dev
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build}"
 
-mkdir -p build
-cd build 
-cmake -S .. -B .
-make
+case "$(uname)" in
+  Linux)
+    sudo apt-get -y update
+    sudo apt-get install -y gcc g++ make build-essential git cmake
+    sudo apt-get install -y libmpg123-dev libvorbis-dev libspeex-dev
+    sudo apt-get install -y libavformat-dev libavcodec-dev libavutil-dev libswresample-dev
+    sudo apt-get install -y yasm libopus-dev
+    sudo apt-get install -y libao-dev audacious-dev
+    ;;
+  Darwin)
+    brew install cmake pkgconfig ffmpeg libao libvorbis mpg123 speex autoconf automake libtool yasm opus
+    ;;
+  *)
+    echo "Unsupported platform: $(uname)" >&2
+    exit 1
+    ;;
+esac
+
+mkdir -p "$BUILD_DIR"
+cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DBUILD_AUDACIOUS:BOOL=OFF
+cmake --build "$BUILD_DIR"
+
+if [ "$(uname)" = "Darwin" ] && [ -n "${FB2K_SDK_PATH:-}" ]; then
+  FB2K_MAC_BUILD_DIR="${FB2K_MAC_BUILD_DIR:-$BUILD_DIR/fb2k-macos}" \
+  VGMSTREAM_BUILD_DIR="${VGMSTREAM_BUILD_DIR:-$BUILD_DIR}" \
+  "$ROOT_DIR/scripts/build_fb2k_macos.sh"
+fi

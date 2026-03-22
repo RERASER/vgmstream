@@ -27,16 +27,34 @@ concurrency:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  FB2K_SDK_VERSION: 2025-03-07
 
 jobs:
   build:
-    name: CMake, macOS
-    runs-on: macos-latest
+    name: CMake, macOS (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-26
+          - arch: x86_64
+            runner: macos-26-intel
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Fetch foobar2000 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L -o "$RUNNER_TEMP/fb2k-sdk.7z" "https://www.foobar2000.org/downloads/SDK-${FB2K_SDK_VERSION}.7z"
+          rm -rf "$RUNNER_TEMP/fb2k-sdk"
+          mkdir -p "$RUNNER_TEMP/fb2k-sdk"
+          bsdtar -xf "$RUNNER_TEMP/fb2k-sdk.7z" -C "$RUNNER_TEMP/fb2k-sdk"
 
       - name: Install dependencies
         run: brew install autoconf automake cmake pkgconfig ffmpeg libao libvorbis mpg123 libtool
@@ -49,31 +67,48 @@ jobs:
             ${{ github.workspace }}/dependencies/celt-0110
             ${{ github.workspace }}/build/dependencies/celt-0061/libcelt/.libs
             ${{ github.workspace }}/build/dependencies/celt-0110/libcelt/.libs
-          key: mac-celt-${{ hashFiles('cmake/dependencies/celt.cmake') }}
+          key: mac-${{ matrix.arch }}-celt-${{ hashFiles('cmake/dependencies/celt.cmake') }}
 
       - name: Cache atrac9
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/build/dependencies/LibAtrac9/bin
-          key: mac-atrac9-${{ hashFiles('cmake/dependencies/atrac9.cmake') }}
+          key: mac-${{ matrix.arch }}-atrac9-${{ hashFiles('cmake/dependencies/atrac9.cmake') }}
 
       - name: Cache g719
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/build/dependencies/libg719_decode/libg719_decode.a
-          key: mac-g719-${{ hashFiles('cmake/dependencies/g719.cmake') }}
+          key: mac-${{ matrix.arch }}-g719-${{ hashFiles('cmake/dependencies/g719.cmake') }}
 
       - name: Build
         run: |
           export LIBRARY_PATH=$(brew --prefix)/lib
-          cmake -S . -B build -DBUILD_AUDACIOUS:BOOL=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+          cmake -S . -B build -DBUILD_AUDACIOUS:BOOL=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}"
           cmake --build build
+
+      - name: Build foobar2000 Mac component
+        shell: bash
+        env:
+          FB2K_SDK_PATH: ${{ runner.temp }}/fb2k-sdk
+          FB2K_MAC_BUILD_DIR: ${{ github.workspace }}/build/fb2k-macos-${{ matrix.arch }}
+          FB2K_MAC_ZIP_PATH: ${{ github.workspace }}/build/fb2k-macos-${{ matrix.arch }}/foo_input_vgmstream-${{ matrix.arch }}.component.zip
+          ARCHS: ${{ matrix.arch }}
+        run: |
+          chmod +x ./scripts/build_fb2k_macos.sh
+          ./scripts/build_fb2k_macos.sh
 
       - name: Upload CLI tools artifact
         uses: actions/upload-artifact@v4
         with:
           path: ${{ github.workspace }}/build/cli/vgmstream-cli
-          name: vgmstream-mac
+          name: vgmstream-mac-${{ matrix.arch }}
+
+      - name: Upload foobar2000 component artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ github.workspace }}/build/fb2k-macos-${{ matrix.arch }}/foo_input_vgmstream-${{ matrix.arch }}.component.zip
+          name: foo_input_vgmstream-mac-component-${{ matrix.arch }}
 
       # uploads current assets to vgmstream-releases (token only works on merges)
       - name: Upload artifacts to vgmstream-releases
@@ -83,5 +118,5 @@ jobs:
         env:
           UPLOADER_GITHUB_TOKEN: ${{ secrets.UPLOADER_GITHUB_TOKEN }}
         run: |
-          tar cvfz vgmstream-mac-cli.tar.gz -C ./build/cli vgmstream-cli
-          python3 .github/uploader.py vgmstream-mac-cli.tar.gz
+          tar cvfz vgmstream-mac-cli-${{ matrix.arch }}.tar.gz -C ./build/cli vgmstream-cli
+          python3 .github/uploader.py vgmstream-mac-cli-${{ matrix.arch }}.tar.gz ./build/fb2k-macos-${{ matrix.arch }}/foo_input_vgmstream-${{ matrix.arch }}.component.zip

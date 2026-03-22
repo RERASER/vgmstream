@@ -1,8 +1,13 @@
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_DEPRECATE
 #endif
+#include <cstring>
 #include <stdio.h>
+#ifdef _WIN32
 #include <io.h>
+#endif
+
+#include <foobar2000/SDK/foobar2000.h>
 
 #include "foo_prefs.h"
 #include "foo_vgmstream.h"
@@ -20,16 +25,129 @@ static cfg_bool     cfg_OverrideTitle   ({0xe794831f,0xd067,0x4337,{0x97,0x85,0x
 static cfg_bool     cfg_ExtsUnknownOn   ({0xd92dc6a2,0x9683,0x422d,{0x8e,0xd1,0x59,0x46,0xd5,0xbf,0x01,0x6f}}, DEFAULT_EXTS_UNKNOWN_ON);
 static cfg_bool     cfg_ExtsCommonOn    ({0x405af423,0x5037,0x4eae,{0xa6,0xe3,0x72,0xd0,0x12,0x7d,0x84,0x6c}}, DEFAULT_EXTS_COMMON_ON);
 
+static std::string get_cfg_text(cfg_string& cfg) {
+    pfc::string8 value = cfg.get();
+    return std::string(value.get_ptr());
+}
+
+static bool parse_nonnegative_double(const char* value, double* parsed) {
+    int consumed = 0;
+    double temp = 0.0;
+    if (sscanf(value, "%lf%n", &temp, &consumed) < 1)
+        return false;
+    if (consumed != (int)strlen(value))
+        return false;
+    if (temp < 0)
+        return false;
+
+    if (parsed)
+        *parsed = temp;
+    return true;
+}
+
+static bool parse_nonnegative_int(const char* value, int* parsed) {
+    int consumed = 0;
+    int temp = 0;
+    if (sscanf(value, "%d%n", &temp, &consumed) < 1)
+        return false;
+    if (consumed != (int)strlen(value))
+        return false;
+    if (temp < 0)
+        return false;
+
+    if (parsed)
+        *parsed = temp;
+    return true;
+}
+
+static bool set_nonnegative_double(cfg_string& cfg, const char* value, const char* field_name, std::string& error) {
+    if (!parse_nonnegative_double(value, NULL)) {
+        error = std::string("Invalid value for ") + field_name + ". Must be a number greater than or equal to zero.";
+        return false;
+    }
+
+    cfg = value;
+    return true;
+}
+
+static bool set_nonnegative_int(cfg_string& cfg, const char* value, const char* field_name, std::string& error) {
+    if (!parse_nonnegative_int(value, NULL)) {
+        error = std::string("Invalid value for ") + field_name + ". Must be a number greater than or equal to zero.";
+        return false;
+    }
+
+    cfg = value;
+    return true;
+}
+
+namespace vgmstream_cfg {
+bool get_loop_forever() { return cfg_LoopForever; }
+bool get_ignore_loop() { return cfg_IgnoreLoop; }
+bool get_disable_subsongs() { return cfg_DisableSubsongs; }
+bool get_tagfile_disable() { return cfg_TagfileDisable; }
+bool get_override_title() { return cfg_OverrideTitle; }
+bool get_exts_unknown_on() { return cfg_ExtsUnknownOn; }
+bool get_exts_common_on() { return cfg_ExtsCommonOn; }
+
+std::string get_loop_count_text() { return get_cfg_text(cfg_LoopCount); }
+std::string get_fade_length_text() { return get_cfg_text(cfg_FadeLength); }
+std::string get_fade_delay_text() { return get_cfg_text(cfg_FadeDelay); }
+std::string get_downmix_channels_text() { return get_cfg_text(cfg_DownmixChannels); }
+
+void set_loop_forever(bool value) { cfg_LoopForever = value; }
+void set_ignore_loop(bool value) { cfg_IgnoreLoop = value; }
+void set_disable_subsongs(bool value) { cfg_DisableSubsongs = value; }
+void set_tagfile_disable(bool value) { cfg_TagfileDisable = value; }
+void set_override_title(bool value) { cfg_OverrideTitle = value; }
+void set_exts_unknown_on(bool value) { cfg_ExtsUnknownOn = value; }
+void set_exts_common_on(bool value) { cfg_ExtsCommonOn = value; }
+
+bool set_loop_count_text(const char* value, std::string& error) {
+    return set_nonnegative_double(cfg_LoopCount, value, "Loop Count", error);
+}
+
+bool set_fade_length_text(const char* value, std::string& error) {
+    return set_nonnegative_double(cfg_FadeLength, value, "Fade Length", error);
+}
+
+bool set_fade_delay_text(const char* value, std::string& error) {
+    return set_nonnegative_double(cfg_FadeDelay, value, "Fade Delay", error);
+}
+
+bool set_downmix_channels_text(const char* value, std::string& error) {
+    return set_nonnegative_int(cfg_DownmixChannels, value, "Downmix Channels", error);
+}
+
+void reset_defaults() {
+    cfg_LoopForever = DEFAULT_LOOP_FOREVER;
+    cfg_IgnoreLoop = DEFAULT_IGNORE_LOOP;
+    cfg_LoopCount = DEFAULT_LOOP_COUNT;
+    cfg_FadeLength = DEFAULT_FADE_SECONDS;
+    cfg_FadeDelay = DEFAULT_FADE_DELAY_SECONDS;
+    cfg_DisableSubsongs = DEFAULT_DISABLE_SUBSONGS;
+    cfg_DownmixChannels = DEFAULT_DOWNMIX_CHANNELS;
+    cfg_TagfileDisable = DEFAULT_TAGFILE_DISABLE;
+    cfg_OverrideTitle = DEFAULT_OVERRIDE_TITLE;
+    cfg_ExtsUnknownOn = DEFAULT_EXTS_UNKNOWN_ON;
+    cfg_ExtsCommonOn = DEFAULT_EXTS_COMMON_ON;
+}
+}
+
 // Needs to be here in rder to access the static config
 void input_vgmstream::load_settings() {
+    pfc::string8 fade_length = cfg_FadeLength.get();
+    pfc::string8 loop_count_text = cfg_LoopCount.get();
+    pfc::string8 fade_delay = cfg_FadeDelay.get();
+    pfc::string8 downmix_channels_text = cfg_DownmixChannels.get();
+
 	// no verification needed here, as it is done below
-	sscanf(cfg_FadeLength.get_ptr(), "%lf", &fade_seconds);
-	sscanf(cfg_LoopCount.get_ptr(), "%lf", &loop_count);
-	sscanf(cfg_FadeDelay.get_ptr(), "%lf", &fade_delay_seconds);
+	sscanf(fade_length.get_ptr(), "%lf", &fade_seconds);
+	sscanf(loop_count_text.get_ptr(), "%lf", &loop_count);
+	sscanf(fade_delay.get_ptr(), "%lf", &fade_delay_seconds);
 	loop_forever = cfg_LoopForever;
 	ignore_loop = cfg_IgnoreLoop;
     disable_subsongs = cfg_DisableSubsongs;
-    sscanf(cfg_DownmixChannels.get_ptr(), "%d", &downmix_channels);
+    sscanf(downmix_channels_text.get_ptr(), "%d", &downmix_channels);
     tagfile_disable = cfg_TagfileDisable;
     override_title = cfg_OverrideTitle;
   //exts_unknown_on = cfg_ExtsUnknownOn;
@@ -46,6 +164,7 @@ void input_vgmstream::g_load_cfg(bool* accept_unknown, bool* accept_common) {
     *accept_common = cfg_ExtsCommonOn;
 }
 
+#ifdef _WIN32
 const char* vgmstream_prefs::get_name() {
 	return input_vgmstream::g_get_name();
 }
@@ -220,3 +339,4 @@ void vgmstreamPreferences::OnEditChange(UINT, int, CWindow) {
 
 
 static preferences_page_factory_t<vgmstream_prefs> g_vgmstream_preferences_page_factory;
+#endif

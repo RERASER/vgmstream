@@ -6,8 +6,10 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #endif
 #include <stdio.h>
-#include <io.h>
 #include <locale.h>
+#ifdef _WIN32
+#include <io.h>
+#endif
 
 #include <foobar2000/SDK/foobar2000.h>
 
@@ -31,11 +33,36 @@
             "https://github.com/vgmstream/vgmstream/\n" \
             "https://sourceforge.net/projects/vgmstream/ (original)"
 
+#ifdef _WIN32
 #define PLUGIN_FILENAME "foo_input_vgmstream.dll"
+#else
+#define PLUGIN_FILENAME "foo_input_vgmstream.component"
+#endif
+
+static const char* find_last_path_sep(const char* path) {
+    const char* slash = strrchr(path, '/');
+    const char* backslash = strrchr(path, '\\');
+    if (!slash)
+        return backslash;
+    if (!backslash)
+        return slash;
+    return slash > backslash ? slash : backslash;
+}
+
+static unsigned sanitize_channel_config(unsigned channels, unsigned channel_config) {
+    if (channels == 0)
+        return 0;
+
+    if (!channel_config || audio_chunk::g_count_channels(channel_config) != channels)
+        return audio_chunk::g_guess_channel_config(channels);
+
+    return channel_config;
+}
 
 
 static void log_callback(int level, const char* str) {
-    console::formatter() /*<< "vgmstream: "*/ << str;
+    console::formatter formatter;
+    formatter /*<< "vgmstream: "*/ << str;
 }
 
 // called every time a file is added to the playlist (to get info) or when playing
@@ -179,9 +206,9 @@ void input_vgmstream::put_into_tagfile(file_info& p_info, abort_callback& p_abor
     char tagfile_path[FOO_PATH_LIMIT];
     strcpy(tagfile_path, filename);
 
-    char* path = strrchr(tagfile_path, '\\');
+    char* path = const_cast<char*>(find_last_path_sep(tagfile_path));
     if (path != NULL) {
-        path[1] = '\0';  // includes "\", remove after that from tagfile_path
+        path[1] = '\0';  // includes the separator, remove after that from tagfile_path
         strcat(tagfile_path, tagfile_name);
     }
     else {
@@ -336,16 +363,15 @@ bool input_vgmstream::decode_run(audio_chunk & p_chunk, abort_callback & p_abort
         // a few 0s may be normal
         calls++;
         if (calls > 1000) {
-            console::formatter() << "vgmstream render deadlock found";
+            console::formatter formatter;
+            formatter << "vgmstream render deadlock found";
             return false;
         }
     }
 
     int sample_rate = vgmstream->format->sample_rate;
     int channels = vgmstream->format->channels;
-    unsigned channel_config = vgmstream->format->channel_layout;
-    if (!channel_config)
-        channel_config = audio_chunk::g_guess_channel_config(channels);
+    unsigned channel_config = sanitize_channel_config(channels, vgmstream->format->channel_layout);
 
     int bps = vgmstream->format->sample_size * 8;
     void* buf = vgmstream->decoder->buf;
@@ -353,7 +379,10 @@ bool input_vgmstream::decode_run(audio_chunk & p_chunk, abort_callback & p_abort
 
     switch (vgmstream->format->sample_format) {
         case LIBVGMSTREAM_SFMT_FLOAT:
-            p_chunk.set_data_floatingpoint_ex(buf, bytes, sample_rate, channels, bps, 0, channel_config);
+            if (bps != 32)
+                return false;
+            p_chunk.set_data_32(static_cast<const float*>(buf), vgmstream->decoder->buf_samples,
+                    audio_chunk::makeSpec(sample_rate, channels, channel_config));
             break;
         case LIBVGMSTREAM_SFMT_PCM16:
         case LIBVGMSTREAM_SFMT_PCM24:

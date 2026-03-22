@@ -3,11 +3,7 @@
 #ifndef _FOO_PREFS_H
 #define _FOO_PREFS_H
 
-#include <foobar2000/helpers/foobar2000+atl.h>
-#include <foobar2000/helpers/atl-misc.h>
-#include <foobar2000/SDK/coreDarkMode.h>
-
-#include "resource.h"
+#include <string>
 
 #define DEFAULT_FADE_SECONDS "10.00"
 #define DEFAULT_FADE_DELAY_SECONDS "0.00"
@@ -20,6 +16,43 @@
 #define DEFAULT_OVERRIDE_TITLE false
 #define DEFAULT_EXTS_UNKNOWN_ON false
 #define DEFAULT_EXTS_COMMON_ON false
+
+namespace vgmstream_cfg {
+bool get_loop_forever();
+bool get_ignore_loop();
+bool get_disable_subsongs();
+bool get_tagfile_disable();
+bool get_override_title();
+bool get_exts_unknown_on();
+bool get_exts_common_on();
+
+std::string get_loop_count_text();
+std::string get_fade_length_text();
+std::string get_fade_delay_text();
+std::string get_downmix_channels_text();
+
+void set_loop_forever(bool value);
+void set_ignore_loop(bool value);
+void set_disable_subsongs(bool value);
+void set_tagfile_disable(bool value);
+void set_override_title(bool value);
+void set_exts_unknown_on(bool value);
+void set_exts_common_on(bool value);
+
+bool set_loop_count_text(const char* value, std::string& error);
+bool set_fade_length_text(const char* value, std::string& error);
+bool set_fade_delay_text(const char* value, std::string& error);
+bool set_downmix_channels_text(const char* value, std::string& error);
+
+void reset_defaults();
+}
+
+#ifdef _WIN32
+#include <foobar2000/helpers/foobar2000+atl.h>
+#include <foobar2000/helpers/atl-misc.h>
+#include <foobar2000/SDK/coreDarkMode.h>
+
+#include "resource.h"
 
 class vgmstreamPreferences : public CDialogImpl<vgmstreamPreferences>, public preferences_page_instance {
 public:
@@ -76,7 +109,6 @@ public:
 	GUID get_parent_guid();
 
 };
-
-
+#endif
 
 #endif
