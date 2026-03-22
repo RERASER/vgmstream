@@ -80,7 +80,7 @@ static bool set_nonnegative_int(cfg_string& cfg, const char* value, const char* 
     return true;
 }
 
-namespace vgmstream_prefs {
+namespace vgmstream_cfg {
 bool get_loop_forever() { return cfg_LoopForever; }
 bool get_ignore_loop() { return cfg_IgnoreLoop; }
 bool get_disable_subsongs() { return cfg_DisableSubsongs; }

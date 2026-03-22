@@ -17,7 +17,7 @@
 #define DEFAULT_EXTS_UNKNOWN_ON false
 #define DEFAULT_EXTS_COMMON_ON false
 
-namespace vgmstream_prefs {
+namespace vgmstream_cfg {
 bool get_loop_forever();
 bool get_ignore_loop();
 bool get_disable_subsongs();

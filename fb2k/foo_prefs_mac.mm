@@ -183,24 +183,24 @@ static NSString* to_ns_string(const std::string& value) {
 }
 
 - (void)reloadFromPreferences {
-    if (vgmstream_prefs::get_ignore_loop()) {
+    if (vgmstream_cfg::get_ignore_loop()) {
         self.loopModeControl.selectedSegment = 1;
-    } else if (vgmstream_prefs::get_loop_forever()) {
+    } else if (vgmstream_cfg::get_loop_forever()) {
         self.loopModeControl.selectedSegment = 2;
     } else {
         self.loopModeControl.selectedSegment = 0;
     }
 
-    self.loopCountField.stringValue = to_ns_string(vgmstream_prefs::get_loop_count_text());
-    self.fadeLengthField.stringValue = to_ns_string(vgmstream_prefs::get_fade_length_text());
-    self.fadeDelayField.stringValue = to_ns_string(vgmstream_prefs::get_fade_delay_text());
-    self.downmixChannelsField.stringValue = to_ns_string(vgmstream_prefs::get_downmix_channels_text());
+    self.loopCountField.stringValue = to_ns_string(vgmstream_cfg::get_loop_count_text());
+    self.fadeLengthField.stringValue = to_ns_string(vgmstream_cfg::get_fade_length_text());
+    self.fadeDelayField.stringValue = to_ns_string(vgmstream_cfg::get_fade_delay_text());
+    self.downmixChannelsField.stringValue = to_ns_string(vgmstream_cfg::get_downmix_channels_text());
 
-    self.disableSubsongsCheckbox.state = vgmstream_prefs::get_disable_subsongs() ? NSControlStateValueOn : NSControlStateValueOff;
-    self.tagfileDisableCheckbox.state = vgmstream_prefs::get_tagfile_disable() ? NSControlStateValueOn : NSControlStateValueOff;
-    self.overrideTitleCheckbox.state = vgmstream_prefs::get_override_title() ? NSControlStateValueOn : NSControlStateValueOff;
-    self.extsUnknownCheckbox.state = vgmstream_prefs::get_exts_unknown_on() ? NSControlStateValueOn : NSControlStateValueOff;
-    self.extsCommonCheckbox.state = vgmstream_prefs::get_exts_common_on() ? NSControlStateValueOn : NSControlStateValueOff;
+    self.disableSubsongsCheckbox.state = vgmstream_cfg::get_disable_subsongs() ? NSControlStateValueOn : NSControlStateValueOff;
+    self.tagfileDisableCheckbox.state = vgmstream_cfg::get_tagfile_disable() ? NSControlStateValueOn : NSControlStateValueOff;
+    self.overrideTitleCheckbox.state = vgmstream_cfg::get_override_title() ? NSControlStateValueOn : NSControlStateValueOff;
+    self.extsUnknownCheckbox.state = vgmstream_cfg::get_exts_unknown_on() ? NSControlStateValueOn : NSControlStateValueOff;
+    self.extsCommonCheckbox.state = vgmstream_cfg::get_exts_common_on() ? NSControlStateValueOn : NSControlStateValueOff;
     [self updateContentLayout];
 }
 
@@ -226,14 +226,14 @@ static NSString* to_ns_string(const std::string& value) {
 
 - (void)applyLoopModeSelection {
     NSInteger selected = self.loopModeControl.selectedSegment;
-    vgmstream_prefs::set_ignore_loop(selected == 1);
-    vgmstream_prefs::set_loop_forever(selected == 2);
+    vgmstream_cfg::set_ignore_loop(selected == 1);
+    vgmstream_cfg::set_loop_forever(selected == 2);
     [self reloadFromPreferences];
 }
 
 - (BOOL)applyLoopCountField:(BOOL)showError {
     std::string error;
-    if (!vgmstream_prefs::set_loop_count_text(self.loopCountField.stringValue.UTF8String, error)) {
+    if (!vgmstream_cfg::set_loop_count_text(self.loopCountField.stringValue.UTF8String, error)) {
         [self markFieldInvalid:self.loopCountField];
         if (showError) {
             [self reloadFromPreferences];
@@ -247,7 +247,7 @@ static NSString* to_ns_string(const std::string& value) {
 
 - (BOOL)applyFadeLengthField:(BOOL)showError {
     std::string error;
-    if (!vgmstream_prefs::set_fade_length_text(self.fadeLengthField.stringValue.UTF8String, error)) {
+    if (!vgmstream_cfg::set_fade_length_text(self.fadeLengthField.stringValue.UTF8String, error)) {
         [self markFieldInvalid:self.fadeLengthField];
         if (showError) {
             [self reloadFromPreferences];
@@ -261,7 +261,7 @@ static NSString* to_ns_string(const std::string& value) {
 
 - (BOOL)applyFadeDelayField:(BOOL)showError {
     std::string error;
-    if (!vgmstream_prefs::set_fade_delay_text(self.fadeDelayField.stringValue.UTF8String, error)) {
+    if (!vgmstream_cfg::set_fade_delay_text(self.fadeDelayField.stringValue.UTF8String, error)) {
         [self markFieldInvalid:self.fadeDelayField];
         if (showError) {
             [self reloadFromPreferences];
@@ -275,7 +275,7 @@ static NSString* to_ns_string(const std::string& value) {
 
 - (BOOL)applyDownmixChannelsField:(BOOL)showError {
     std::string error;
-    if (!vgmstream_prefs::set_downmix_channels_text(self.downmixChannelsField.stringValue.UTF8String, error)) {
+    if (!vgmstream_cfg::set_downmix_channels_text(self.downmixChannelsField.stringValue.UTF8String, error)) {
         [self markFieldInvalid:self.downmixChannelsField];
         if (showError) {
             [self reloadFromPreferences];
@@ -319,33 +319,33 @@ static NSString* to_ns_string(const std::string& value) {
 }
 
 - (void)onDisableSubsongsChanged:(id)sender {
-    vgmstream_prefs::set_disable_subsongs(((NSButton*)sender).state == NSControlStateValueOn);
+    vgmstream_cfg::set_disable_subsongs(((NSButton*)sender).state == NSControlStateValueOn);
     [self reloadFromPreferences];
 }
 
 - (void)onTagfileDisableChanged:(id)sender {
-    vgmstream_prefs::set_tagfile_disable(((NSButton*)sender).state == NSControlStateValueOn);
+    vgmstream_cfg::set_tagfile_disable(((NSButton*)sender).state == NSControlStateValueOn);
     [self reloadFromPreferences];
 }
 
 - (void)onOverrideTitleChanged:(id)sender {
-    vgmstream_prefs::set_override_title(((NSButton*)sender).state == NSControlStateValueOn);
+    vgmstream_cfg::set_override_title(((NSButton*)sender).state == NSControlStateValueOn);
     [self reloadFromPreferences];
 }
 
 - (void)onExtsUnknownChanged:(id)sender {
-    vgmstream_prefs::set_exts_unknown_on(((NSButton*)sender).state == NSControlStateValueOn);
+    vgmstream_cfg::set_exts_unknown_on(((NSButton*)sender).state == NSControlStateValueOn);
     [self reloadFromPreferences];
 }
 
 - (void)onExtsCommonChanged:(id)sender {
-    vgmstream_prefs::set_exts_common_on(((NSButton*)sender).state == NSControlStateValueOn);
+    vgmstream_cfg::set_exts_common_on(((NSButton*)sender).state == NSControlStateValueOn);
     [self reloadFromPreferences];
 }
 
 - (void)onResetDefaults:(id)sender {
     (void)sender;
-    vgmstream_prefs::reset_defaults();
+    vgmstream_cfg::reset_defaults();
     [self reloadFromPreferences];
 }
 
