@@ -52,6 +52,26 @@ static const char* find_last_path_sep(const char* path) {
     return slash > backslash ? slash : backslash;
 }
 
+static const char* find_last_path_sep_before(const char* path, const char* end) {
+    const char* slash = NULL;
+    const char* backslash = NULL;
+    const char* p = path;
+
+    while (p && *p && p < end) {
+        if (*p == '/')
+            slash = p;
+        else if (*p == '\\')
+            backslash = p;
+        p++;
+    }
+
+    if (!slash)
+        return backslash;
+    if (!backslash)
+        return slash;
+    return slash > backslash ? slash : backslash;
+}
+
 static int foo_read(void* user_data, uint8_t* dst, int64_t offset, int length) {
     foo_priv_t* priv = (foo_priv_t*)user_data;
     int read_total = 0;
@@ -265,7 +285,9 @@ static libstreamfile_t* open_foo_streamfile_from_file(service_ptr_t<file> m_file
         if (archfile_ptr)
             priv->archfile_end = (int)((intptr_t)archfile_ptr + 1 - (intptr_t)priv->name); // after "|""
 
-        const char* archpath_ptr = find_last_path_sep(priv->name);
+        const char* archpath_ptr = NULL;
+        if (archfile_ptr)
+            archpath_ptr = find_last_path_sep_before(priv->name, archfile_ptr);
         if (archpath_ptr)
             priv->archpath_end = (int)((intptr_t)archpath_ptr + 1 - (intptr_t)priv->name); // after the separator
 

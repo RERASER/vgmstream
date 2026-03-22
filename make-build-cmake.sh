@@ -7,6 +7,7 @@ set -eu
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build}"
+CMAKE_OSX_ARCH_ARG=""
 
 case "$(uname)" in
   Linux)
@@ -19,6 +20,7 @@ case "$(uname)" in
     ;;
   Darwin)
     brew install cmake pkgconfig ffmpeg libao libvorbis mpg123 speex autoconf automake libtool yasm opus
+    CMAKE_OSX_ARCH_ARG="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
     ;;
   *)
     echo "Unsupported platform: $(uname)" >&2
@@ -27,13 +29,15 @@ case "$(uname)" in
 esac
 
 mkdir -p "$BUILD_DIR"
-cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DBUILD_AUDACIOUS:BOOL=OFF
+if [ -n "$CMAKE_OSX_ARCH_ARG" ]; then
+  cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DBUILD_AUDACIOUS:BOOL=OFF "$CMAKE_OSX_ARCH_ARG"
+else
+  cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DBUILD_AUDACIOUS:BOOL=OFF
+fi
 cmake --build "$BUILD_DIR"
 
 if [ "$(uname)" = "Darwin" ] && [ -n "${FB2K_SDK_PATH:-}" ]; then
   FB2K_MAC_BUILD_DIR="${FB2K_MAC_BUILD_DIR:-$BUILD_DIR/fb2k-macos}" \
-  LIBVGMSTREAM_PATH="${LIBVGMSTREAM_PATH:-$ROOT_DIR/src/libvgmstream.a}" \
-  FB2K_MAC_LINK_OPTIONAL_DEPS="${FB2K_MAC_LINK_OPTIONAL_DEPS:-0}" \
   VGMSTREAM_BUILD_DIR="${VGMSTREAM_BUILD_DIR:-$BUILD_DIR}" \
   "$ROOT_DIR/scripts/build_fb2k_macos.sh"
 fi

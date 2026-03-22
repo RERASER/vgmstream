@@ -19,12 +19,29 @@ OBJECT_DIR="$BUILD_ROOT/objects"
 PRODUCTS_DIR="$DERIVED_DATA_DIR/Build/Products/Release"
 COMPONENT_DIR="${FB2K_MAC_OUTPUT_DIR:-$BUILD_ROOT/foo_input_vgmstream.component}"
 ZIP_PATH="${FB2K_MAC_ZIP_PATH:-$BUILD_ROOT/foo_input_vgmstream.component.zip}"
-LIBVGMSTREAM_PATH="${LIBVGMSTREAM_PATH:-$ROOT_DIR/src/libvgmstream.a}"
-VGMSTREAM_BUILD_DIR="${VGMSTREAM_BUILD_DIR:-}"
-FB2K_MAC_LINK_OPTIONAL_DEPS="${FB2K_MAC_LINK_OPTIONAL_DEPS:-0}"
+VGMSTREAM_BUILD_DIR="${VGMSTREAM_BUILD_DIR:-$ROOT_DIR/build}"
+if [[ -n "${LIBVGMSTREAM_PATH:-}" ]]; then
+    LIBVGMSTREAM_PATH="$LIBVGMSTREAM_PATH"
+elif [[ -f "$VGMSTREAM_BUILD_DIR/src/libvgmstream.a" ]]; then
+    LIBVGMSTREAM_PATH="$VGMSTREAM_BUILD_DIR/src/libvgmstream.a"
+else
+    LIBVGMSTREAM_PATH="$ROOT_DIR/src/libvgmstream.a"
+fi
+if [[ -z "${FB2K_MAC_LINK_OPTIONAL_DEPS:-}" ]]; then
+    if [[ "$LIBVGMSTREAM_PATH" = "$ROOT_DIR/src/libvgmstream.a" ]]; then
+        FB2K_MAC_LINK_OPTIONAL_DEPS=0
+    else
+        FB2K_MAC_LINK_OPTIONAL_DEPS=1
+    fi
+fi
 MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
-ARCH="${ARCH:-$(uname -m)}"
+ARCHS="${ARCHS:-arm64 x86_64}"
 SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+
+read -r -a ARCH_LIST <<< "$ARCHS"
+if (( ${#ARCH_LIST[@]} == 0 )); then
+    ARCH_LIST=($(uname -m))
+fi
 
 if [[ ! -f "$LIBVGMSTREAM_PATH" ]]; then
     make -C "$ROOT_DIR/src" libvgmstream.a
@@ -42,12 +59,13 @@ xcodebuild \
     -scheme foo_sample \
     -configuration Release \
     -derivedDataPath "$DERIVED_DATA_DIR" \
+    ARCHS="$ARCHS" \
+    ONLY_ACTIVE_ARCH=NO \
     build
 
 COMMON_CXXFLAGS=(
     -DNDEBUG
     -std=gnu++20
-    -arch "$ARCH"
     -mmacosx-version-min="$MACOSX_DEPLOYMENT_TARGET"
     -isysroot "$SDKROOT"
     -I "$FB2K_SDK_PATH"
@@ -60,6 +78,10 @@ COMMON_CXXFLAGS=(
     -I "$ROOT_DIR/src"
     -I "$ROOT_DIR/ext_includes"
 )
+
+for arch in "${ARCH_LIST[@]}"; do
+    COMMON_CXXFLAGS+=(-arch "$arch")
+done
 
 xcrun clang++ "${COMMON_CXXFLAGS[@]}" -c "$ROOT_DIR/fb2k/foo_vgmstream.cpp" -o "$OBJECT_DIR/foo_vgmstream.o"
 xcrun clang++ "${COMMON_CXXFLAGS[@]}" -c "$ROOT_DIR/fb2k/foo_streamfile.cpp" -o "$OBJECT_DIR/foo_streamfile.o"
@@ -138,7 +160,6 @@ fi
 
 LINK_ARGS=(
     -bundle
-    -arch "$ARCH"
     -mmacosx-version-min="$MACOSX_DEPLOYMENT_TARGET"
     -isysroot "$SDKROOT"
     "$OBJECT_DIR/foo_vgmstream.o"
@@ -152,6 +173,10 @@ LINK_ARGS=(
     "$PRODUCTS_DIR/libfoobar2000_SDK_helpers.a"
     "$PRODUCTS_DIR/libpfc-Mac.a"
 )
+
+for arch in "${ARCH_LIST[@]}"; do
+    LINK_ARGS+=(-arch "$arch")
+done
 
 if (( ${#EXTRA_LINK_ARGS[@]} > 0 )); then
     LINK_ARGS+=("${EXTRA_LINK_ARGS[@]}")

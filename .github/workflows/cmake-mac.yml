@@ -76,7 +76,7 @@ jobs:
       - name: Build
         run: |
           export LIBRARY_PATH=$(brew --prefix)/lib
-          cmake -S . -B build -DBUILD_AUDACIOUS:BOOL=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+          cmake -S . -B build -DBUILD_AUDACIOUS:BOOL=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
           cmake --build build
 
       - name: Build foobar2000 Mac component
