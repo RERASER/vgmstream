@@ -3,7 +3,9 @@
 #endif
 
 #include <stdio.h>
+#ifdef _WIN32
 #include <io.h>
+#endif
 
 #include <foobar2000/SDK/foobar2000.h>
 
@@ -39,6 +41,16 @@ typedef struct {
 
 static libstreamfile_t* open_foo_streamfile_internal(const char* const filename, abort_callback* p_abort, t_filestats* stats);
 static libstreamfile_t* open_foo_streamfile_from_file(service_ptr_t<file> m_file, bool m_file_opened, const char* const filename, abort_callback* p_abort);
+
+static const char* find_last_path_sep(const char* path) {
+    const char* slash = strrchr(path, '/');
+    const char* backslash = strrchr(path, '\\');
+    if (!slash)
+        return backslash;
+    if (!backslash)
+        return slash;
+    return slash > backslash ? slash : backslash;
+}
 
 static int foo_read(void* user_data, uint8_t* dst, int64_t offset, int length) {
     foo_priv_t* priv = (foo_priv_t*)user_data;
@@ -154,7 +166,7 @@ static libstreamfile_t* foo_open(void* user_data, const char* const filename) {
         if (filename_len > priv->archpath_end) {
             filepart = &filename[priv->archpath_end];
         } else  {
-            filepart = strrchr(filename, '\\'); // vgmstream shouldn't remove paths though
+            filepart = find_last_path_sep(filename); // vgmstream shouldn't remove paths though
             if (!filepart)
                 filepart = filename;
             else
@@ -216,6 +228,7 @@ static void foo_close(libstreamfile_t* libsf) {
 
 static libstreamfile_t* open_foo_streamfile_from_file(service_ptr_t<file> m_file, bool m_file_opened, const char* const filename, abort_callback* p_abort) {
     libstreamfile_t* libsf;
+    foo_priv_t* priv;
     const int buf_size = FOO_STREAMFILE_DEFAULT_BUFFER_SIZE;
 
     libsf = (libstreamfile_t*)calloc(1, sizeof(libstreamfile_t));
@@ -230,7 +243,7 @@ static libstreamfile_t* open_foo_streamfile_from_file(service_ptr_t<file> m_file
     libsf->user_data = (foo_priv_t*)calloc(1, sizeof(foo_priv_t));
     if (!libsf->user_data) goto fail;
 
-    foo_priv_t* priv = (foo_priv_t*)libsf->user_data;
+    priv = (foo_priv_t*)libsf->user_data;
     priv->m_file_opened = m_file_opened;
     priv->m_file = m_file;
     priv->p_abort = p_abort;
@@ -252,9 +265,9 @@ static libstreamfile_t* open_foo_streamfile_from_file(service_ptr_t<file> m_file
         if (archfile_ptr)
             priv->archfile_end = (int)((intptr_t)archfile_ptr + 1 - (intptr_t)priv->name); // after "|""
 
-        const char* archpath_ptr = strrchr(priv->name, '\\');
+        const char* archpath_ptr = find_last_path_sep(priv->name);
         if (archpath_ptr)
-            priv->archpath_end = (int)((intptr_t)archpath_ptr + 1 - (intptr_t)priv->name); // after "\\"
+            priv->archpath_end = (int)((intptr_t)archpath_ptr + 1 - (intptr_t)priv->name); // after the separator
 
         if (priv->archpath_end <= 0 || priv->archfile_end <= 0 || priv->archpath_end > priv->archfile_end || 
                 priv->archfile_end > priv->name_len || priv->archfile_end >= FOO_PATH_LIMIT) {
